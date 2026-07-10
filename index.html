@@ -256,6 +256,16 @@ main{flex:1; position:relative; padding:16px 20px 100px;}
 .modal-actions button:active{transform:scale(0.96);}
 .modal-actions .m-nope{background:var(--surface2); color:var(--nope);}
 .modal-actions .m-like{background:var(--like); color:#082016;}
+.trailer-btn{
+  width:100%; background:var(--surface2); color:var(--text); border:none; padding:14px; border-radius:14px;
+  font-family:'Space Grotesk'; font-weight:700; font-size:13.5px; cursor:pointer; margin-top:16px;
+  display:flex; align-items:center; justify-content:center; gap:8px; transition:transform .12s ease;
+}
+.trailer-btn:active{transform:scale(0.97);}
+.trailer-frame{
+  margin-top:16px; position:relative; width:100%; padding-top:56.25%; border-radius:16px; overflow:hidden; box-shadow:var(--shadow-sm); background:#000;
+}
+.trailer-frame iframe{position:absolute; inset:0; width:100%; height:100%; border:none;}
 
 .toast{
   position:fixed; bottom:26px; left:50%; transform:translateX(-50%) translateY(16px); background:var(--gold); color:#1c1408;
@@ -537,6 +547,26 @@ async function ensureKeywords(id){
   return keywordCache[id];
 }
 
+/* ---------- trailers ---------- */
+let videoCache = {};
+function pickTrailer(results){
+  if(!results) return null;
+  const vids = results.filter(v => v.site === 'YouTube' && (v.type === 'Trailer' || v.type === 'Teaser'));
+  const best = vids.find(v => v.type === 'Trailer' && v.official) || vids.find(v => v.type === 'Trailer') || vids.find(v => v.type === 'Teaser');
+  return best ? best.key : null;
+}
+async function ensureTrailer(id){
+  if(videoCache[id] !== undefined) return videoCache[id];
+  const data = await apiGet(`${API}/movie/${id}/videos?api_key=${TMDB_KEY}&language=en-US`);
+  let key = pickTrailer(data && data.results);
+  if(!key){
+    const data2 = await apiGet(`${API}/movie/${id}/videos?api_key=${TMDB_KEY}`);
+    key = pickTrailer(data2 && data2.results);
+  }
+  videoCache[id] = key;
+  return key;
+}
+
 /* ---------- scoring ---------- */
 function genreSum(m, d){ return m.genre_ids.reduce((s,g)=> s + (d.genreScore[g]||0), 0); }
 function baseScore(m, d){
@@ -750,6 +780,7 @@ async function openModal(m){
     </div>
     <div class="modal-syn">${escapeHtml(m.overview) || 'No synopsis available.'}</div>
     <div class="modal-tags">${m.genre_ids.map(g=>`<div class="modal-chip">${GENRE_NAMES[g]||''}</div>`).join('')}</div>
+    <div id="trailerSlot"></div>
     <div class="modal-actions">
       <button class="m-nope" id="modalNope">✕ Not for me</button>
       <button class="m-like" id="modalLike">♥ Like it</button>
@@ -759,6 +790,16 @@ async function openModal(m){
   document.getElementById('closeModal').onclick = closeModal;
   document.getElementById('modalNope').onclick = ()=>{ closeModal(); if(topCard && topCard.movie.id===m.id) swipeButton('nope'); else quickJudge(m,'nope'); };
   document.getElementById('modalLike').onclick = ()=>{ closeModal(); if(topCard && topCard.movie.id===m.id) swipeButton('like'); else quickJudge(m,'like'); };
+
+  ensureTrailer(m.id).then(key => {
+    if(!key || !modalMovie || modalMovie.id !== m.id) return;
+    const slot = document.getElementById('trailerSlot');
+    if(!slot) return;
+    slot.innerHTML = `<button class="trailer-btn" id="trailerBtn">▶ Watch Trailer</button>`;
+    document.getElementById('trailerBtn').addEventListener('click', () => {
+      slot.innerHTML = `<div class="trailer-frame"><iframe src="https://www.youtube-nocookie.com/embed/${key}?autoplay=1&rel=0&modestbranding=1&playsinline=1" title="Trailer" frameborder="0" allow="autoplay; encrypted-media; picture-in-picture" allowfullscreen></iframe></div>`;
+    });
+  });
 
   const details = await apiGet(`${API}/movie/${m.id}?api_key=${TMDB_KEY}&language=en-US`);
   if(details && modalMovie && modalMovie.id===m.id){
