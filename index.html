@@ -2,6 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#12121a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>REEL MATCH</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Space+Grotesk:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap');
@@ -19,18 +24,51 @@
   --line:rgba(244,241,234,0.12);
 }
 *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
-html,body{margin:0;padding:0;}
+html,body{margin:0;padding:0; overscroll-behavior:none;}
 body{
   background:var(--bg);
   color:var(--text);
   font-family:'Space Grotesk', sans-serif;
   min-height:100vh;
+  min-height:100dvh;
   overflow-x:hidden;
   user-select:none;
+  -webkit-text-size-adjust:100%;
 }
-.app{max-width:460px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; position:relative;}
+.app{
+  max-width:460px; margin:0 auto; min-height:100vh; min-height:100dvh; display:flex; flex-direction:column; position:relative;
+  padding-bottom:env(safe-area-inset-bottom);
+}
 
-header{padding:18px 20px 10px; position:relative; z-index:5;}
+.profile-screen{
+  position:fixed; inset:0; background:var(--bg); z-index:200; display:flex; flex-direction:column; align-items:center;
+  justify-content:center; padding:30px; padding-top:calc(30px + env(safe-area-inset-top)); padding-bottom:calc(30px + env(safe-area-inset-bottom));
+  gap:22px; text-align:center;
+}
+.profile-screen h1{font-family:'Bebas Neue'; font-size:36px; color:var(--gold); letter-spacing:2px; margin:0;}
+.profile-screen p{color:var(--muted); font-size:12.5px; font-family:'JetBrains Mono'; margin:0; max-width:280px; line-height:1.6;}
+.profile-grid{display:flex; flex-wrap:wrap; gap:16px; justify-content:center; max-width:380px;}
+.profile-avatar{display:flex; flex-direction:column; align-items:center; gap:8px; cursor:pointer; background:none; border:none; color:var(--text); padding:0;}
+.avatar-circle{
+  width:64px; height:64px; border-radius:16px; display:flex; align-items:center; justify-content:center;
+  font-family:'Bebas Neue'; font-size:22px; border:2px solid transparent; transition:border-color .15s;
+}
+.profile-avatar:active .avatar-circle{border-color:var(--gold);}
+.profile-avatar span{font-size:11.5px; font-family:'Space Grotesk'; font-weight:600; max-width:70px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+.add-profile-row{display:flex; gap:8px; margin-top:4px; width:100%; max-width:300px;}
+.add-profile-row input{
+  flex:1; background:var(--surface); border:1px solid var(--line); color:var(--text); padding:12px 14px;
+  border-radius:12px; font-family:'Space Grotesk'; font-size:14px; min-width:0;
+}
+.add-profile-row button{
+  background:var(--gold); border:none; color:#1c1408; font-weight:700; padding:0 18px; border-radius:12px; cursor:pointer; font-family:'Space Grotesk'; font-size:13px;
+}
+.switch-profile-btn{
+  background:none; border:none; color:var(--muted); font-family:'JetBrains Mono'; font-size:10px; cursor:pointer;
+  text-decoration:underline; padding:0; margin-top:8px; display:block;
+}
+
+header{padding:calc(18px + env(safe-area-inset-top)) 20px 10px; position:relative; z-index:5;}
 .brand{
   font-family:'Bebas Neue', sans-serif;
   font-size:34px;
@@ -83,7 +121,7 @@ main{flex:1; position:relative; padding:14px 20px 100px;}
 }
 
 /* DISCOVER / STACK */
-.stack-wrap{position:relative; height:500px; margin-top:4px;}
+.stack-wrap{position:relative; height:clamp(380px, 56dvh, 520px); margin-top:4px;}
 .card{
   position:absolute; inset:0; border-radius:22px; overflow:hidden;
   box-shadow:0 20px 40px rgba(0,0,0,0.5);
@@ -160,6 +198,12 @@ main{flex:1; position:relative; padding:14px 20px 100px;}
 .action-btn.nope{color:var(--nope); font-size:26px;}
 .action-btn.like{color:var(--like); font-size:24px;}
 .action-btn.info{width:44px; height:44px; font-size:18px; color:var(--gold);}
+.action-btn.seen{width:44px; height:44px; font-size:17px; color:var(--cream);}
+.genre-group-title{
+  font-family:'Bebas Neue'; font-size:17px; letter-spacing:.5px; color:var(--cream); margin:18px 0 8px;
+  display:flex; align-items:center; gap:6px;
+}
+.genre-group-title .cnt{color:var(--muted); font-family:'JetBrains Mono'; font-size:11px; font-weight:400;}
 
 .watch-item{
   display:flex; gap:12px; background:var(--surface); border:1px solid var(--line); border-radius:16px; padding:12px; margin-bottom:12px;
@@ -229,9 +273,31 @@ main{flex:1; position:relative; padding:14px 20px 100px;}
 .toast.show{opacity:1; transform:translateX(-50%) translateY(0);}
 
 ::-webkit-scrollbar{display:none;}
+
+@media (max-width:370px){
+  .brand{font-size:28px;}
+  header{padding-left:16px; padding-right:16px;}
+  main{padding-left:16px; padding-right:16px;}
+  .card-title{font-size:26px;}
+  .action-btn{width:52px; height:52px;}
+  .action-btn.info, .action-btn.seen{width:40px; height:40px;}
+  .actions{gap:14px;}
+}
+@media (max-height:680px){
+  .stack-wrap{height:clamp(340px, 50dvh, 460px);}
+}
 </style>
 </head>
 <body>
+<div class="profile-screen" id="profileScreen">
+  <h1>WHO'S SWIPING?</h1>
+  <p>Everyone gets their own taste profile on this device, likes, dislikes, and picks saved separately.</p>
+  <div class="profile-grid" id="profileGrid"></div>
+  <div class="add-profile-row">
+    <input type="text" id="newProfileInput" placeholder="Enter a name" maxlength="20">
+    <button id="addProfileBtn">Add</button>
+  </div>
+</div>
 <div class="app">
   <header>
     <div class="brand">REEL MATCH <span>// TASTE-LEARNING PICKER</span></div>
@@ -240,10 +306,12 @@ main{flex:1; position:relative; padding:14px 20px 100px;}
       <button id="modeFriends">🍿 With Friends</button>
     </div>
     <div class="tmdb-credit">This product uses the TMDB API but is not endorsed or certified by TMDB.</div>
+    <button class="switch-profile-btn" id="switchProfileBtn">Switch profile (<span id="currentProfileName">—</span>)</button>
     <div class="tabs">
       <button class="tab-btn active" data-tab="discover">Discover</button>
       <button class="tab-btn" data-tab="towatch">To Rate <span class="tab-badge" id="toWatchCount">0</span></button>
-      <button class="tab-btn" data-tab="profile">Taste Profile</button>
+      <button class="tab-btn" data-tab="likes">Likes <span class="tab-badge" id="likesCount">0</span></button>
+      <button class="tab-btn" data-tab="profile">Profile</button>
     </div>
   </header>
 
@@ -260,6 +328,7 @@ main{flex:1; position:relative; padding:14px 20px 100px;}
       <div class="stack-wrap" id="stackWrap"></div>
       <div class="actions">
         <button class="action-btn nope" id="btnNope">✕</button>
+        <button class="action-btn seen" id="btnSeen" title="Already watched">👁</button>
         <button class="action-btn info" id="btnInfo">ⓘ</button>
         <button class="action-btn like" id="btnLike">♥</button>
       </div>
@@ -268,6 +337,11 @@ main{flex:1; position:relative; padding:14px 20px 100px;}
     <div id="tab-towatch" style="display:none;">
       <div class="section-title">Rate what you watched</div>
       <div id="toWatchList"></div>
+    </div>
+
+    <div id="tab-likes" style="display:none;">
+      <div class="section-title">Your matches, by genre</div>
+      <div id="likesList"></div>
     </div>
 
     <div id="tab-profile" style="display:none;">
@@ -322,21 +396,64 @@ let topCard = null;
 let modalMovie = null;
 let activeGenre = '';
 let activeSort = 'popularity';
+let profileName = null;
 
-function defaultData(){ return { genreScore:{}, keywordScore:{}, seenIds:[], toWatch:[], watched:{}, boosts:{}, boostSource:{} }; }
+const PROFILES_KEY = 'rm2:profiles';
+const LAST_PROFILE_KEY = 'rm2:lastProfile';
+
+function defaultData(){ return { genreScore:{}, keywordScore:{}, seenIds:[], toWatch:[], watched:{}, boosts:{}, boostSource:{}, matches:[] }; }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function hashHue(id){ return (id * 47) % 360; }
 
 async function safeGet(key){
-  try{ const r = await window.storage.get(key, false); return r && r.value ? JSON.parse(r.value) : null; }
+  try{ const v = localStorage.getItem(key); return v ? JSON.parse(v) : null; }
   catch(e){ return null; }
 }
 async function safeSet(key, val){
-  try{ await window.storage.set(key, JSON.stringify(val), false); } catch(e){ console.error('save failed', key, e); }
+  try{ localStorage.setItem(key, JSON.stringify(val)); }
+  catch(e){ console.error('save failed', key, e); }
 }
 
-async function loadMode(m){ store[m] = (await safeGet('rm2:'+m)) || defaultData(); }
-async function saveMode(m){ await safeSet('rm2:'+m, store[m]); }
+/* ---------- profiles ---------- */
+function getProfiles(){ try{ return JSON.parse(localStorage.getItem(PROFILES_KEY)) || []; } catch(e){ return []; } }
+function saveProfilesList(list){ localStorage.setItem(PROFILES_KEY, JSON.stringify(list)); }
+function initials(name){ const parts = name.trim().split(/\s+/); return (parts[0][0] + (parts[1]?parts[1][0]:'')).toUpperCase(); }
+function avatarHue(name){ let h=0; for(let i=0;i<name.length;i++) h=(h*31+name.charCodeAt(i))%360; return h; }
+
+function renderProfileScreen(){
+  const grid = document.getElementById('profileGrid');
+  const profiles = getProfiles();
+  grid.innerHTML = profiles.map(p=>`
+    <button class="profile-avatar" data-name="${escapeHtml(p)}">
+      <div class="avatar-circle" style="background:hsl(${avatarHue(p)},45%,20%); color:hsl(${avatarHue(p)},70%,75%);">${initials(p)}</div>
+      <span>${escapeHtml(p)}</span>
+    </button>`).join('');
+  grid.querySelectorAll('.profile-avatar').forEach(btn=>{
+    btn.addEventListener('click', ()=> selectProfile(btn.dataset.name));
+  });
+}
+function addProfile(){
+  const input = document.getElementById('newProfileInput');
+  const name = input.value.trim();
+  if(!name) return;
+  const profiles = getProfiles();
+  if(!profiles.includes(name)){ profiles.push(name); saveProfilesList(profiles); }
+  input.value = '';
+  selectProfile(name);
+}
+async function selectProfile(name){
+  profileName = name;
+  localStorage.setItem(LAST_PROFILE_KEY, name);
+  document.getElementById('profileScreen').style.display = 'none';
+  document.getElementById('currentProfileName').textContent = name;
+  await startApp();
+}
+
+async function loadMode(m){
+  store[m] = (await safeGet(`rm2:${encodeURIComponent(profileName)}:${m}`)) || defaultData();
+  if(!store[m].matches) store[m].matches = [];
+}
+async function saveMode(m){ await safeSet(`rm2:${encodeURIComponent(profileName)}:${m}`, store[m]); }
 async function loadCatalog(){ catalog = (await safeGet('rm2:catalog')) || { pool:{}, cursors:{} }; }
 async function saveCatalog(){ await safeSet('rm2:catalog', catalog); }
 async function loadKeywordCache(){ keywordCache = (await safeGet('rm2:keywords')) || {}; }
@@ -454,6 +571,10 @@ async function buildDeck(){
 function nudgeGenres(movie, w){
   const d = store[mode];
   movie.genre_ids.forEach(g => { d.genreScore[g] = (d.genreScore[g]||0) + w; });
+}
+function addToMatches(movieId){
+  const d = store[mode];
+  if(!d.matches.includes(movieId)) d.matches.push(movieId);
 }
 async function nudgeKeywords(movieId, w){
   const kws = await ensureKeywords(movieId);
@@ -585,7 +706,8 @@ async function commitSwipe(dir, movie, card){
   if(dir==='like'){
     nudgeGenres(movie, 1);
     if(!d.toWatch.includes(movie.id)) d.toWatch.push(movie.id);
-    showToast(`Added "${movie.title}" to your To Rate list`);
+    addToMatches(movie.id);
+    showToast(`It's a match! Added "${movie.title}" to your Likes`);
     nudgeKeywords(movie.id, 1);
     boostFromRecs(movie, 4);
   } else {
@@ -594,6 +716,7 @@ async function commitSwipe(dir, movie, card){
   }
   deck.shift();
   await saveMode(mode);
+  renderLikesBadge();
   setTimeout(async ()=>{ await buildDeck(); renderStack(); renderToWatchBadge(); }, 220);
 }
 
@@ -641,15 +764,69 @@ async function openModal(m){
 async function quickJudge(m, dir){
   const d = store[mode];
   if(!d.seenIds.includes(m.id)) d.seenIds.push(m.id);
-  if(dir==='like'){ nudgeGenres(m,1); if(!d.toWatch.includes(m.id)) d.toWatch.push(m.id); nudgeKeywords(m.id,1); boostFromRecs(m,4); }
+  if(dir==='like'){ nudgeGenres(m,1); if(!d.toWatch.includes(m.id)) d.toWatch.push(m.id); addToMatches(m.id); nudgeKeywords(m.id,1); boostFromRecs(m,4); }
   else { nudgeGenres(m,-1.5); nudgeKeywords(m.id,-1.5); }
   await saveMode(mode);
   deck = deck.filter(id=>id!==m.id);
-  renderStack(); renderToWatchBadge();
+  renderStack(); renderToWatchBadge(); renderLikesBadge();
 }
 function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
 
+async function commitRating(movie, rating){
+  const d = store[mode];
+  const weight = {Loved:3, Liked:1.5, Meh:-0.5, Hated:-3}[rating];
+  nudgeGenres(movie, weight);
+  nudgeKeywords(movie.id, weight);
+  if(!d.seenIds.includes(movie.id)) d.seenIds.push(movie.id);
+  d.watched[movie.id] = rating;
+  d.toWatch = d.toWatch.filter(x=>x!==movie.id);
+  if(rating==='Loved' || rating==='Liked') addToMatches(movie.id);
+  await saveMode(mode);
+  if(rating==='Loved') boostFromRecs(movie, 6);
+  showToast(`Got it, "${movie.title}" was ${rating.toLowerCase()}`);
+  deck = deck.filter(id=>id!==movie.id);
+  renderStack();
+  renderToWatch();
+  renderToWatchBadge();
+  renderLikesBadge();
+  await buildDeck();
+}
+
+function openRateSheet(movie){
+  modalMovie = movie;
+  const posterUrl = movie.poster_path ? TMDB_IMG + movie.poster_path : null;
+  const hue = hashHue(movie.id);
+  const thumb = posterUrl
+    ? `<img src="${posterUrl}" style="width:56px;height:80px;object-fit:cover;border-radius:8px;flex-shrink:0;" alt="${escapeHtml(movie.title)}">`
+    : `<div style="width:56px;height:80px;display:flex;align-items:center;justify-content:center;border-radius:8px;background:hsl(${hue},40%,14%);flex-shrink:0;font-size:26px;">🎬</div>`;
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-head">
+      ${thumb}
+      <div style="flex:1;">
+        <div class="modal-title">${escapeHtml(movie.title)}</div>
+        <div class="modal-meta">Already watched this one? How was it?</div>
+      </div>
+      <button class="close-x" id="closeModal">✕</button>
+    </div>
+    <div class="modal-actions" style="flex-wrap:wrap; margin-top:20px; gap:8px;">
+      <button class="rate-btn" style="flex:1 1 45%; padding:12px; font-size:13px;" data-r="Loved">😍 Loved</button>
+      <button class="rate-btn" style="flex:1 1 45%; padding:12px; font-size:13px;" data-r="Liked">🙂 Liked</button>
+      <button class="rate-btn" style="flex:1 1 45%; padding:12px; font-size:13px;" data-r="Meh">😐 Meh</button>
+      <button class="rate-btn" style="flex:1 1 45%; padding:12px; font-size:13px;" data-r="Hated">🤢 Hated</button>
+    </div>
+  `;
+  document.getElementById('modalOverlay').classList.add('open');
+  document.getElementById('closeModal').onclick = closeModal;
+  document.getElementById('modalContent').querySelectorAll('.rate-btn').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      closeModal();
+      await commitRating(movie, btn.dataset.r);
+    });
+  });
+}
+
 function renderToWatchBadge(){ document.getElementById('toWatchCount').textContent = store[mode].toWatch.length; }
+function renderLikesBadge(){ document.getElementById('likesCount').textContent = store[mode].matches.length; }
 
 function renderToWatch(){
   const d = store[mode];
@@ -681,20 +858,49 @@ function renderToWatch(){
   list.querySelectorAll('.rate-btn').forEach(btn=>{
     btn.addEventListener('click', async ()=>{
       const id = parseInt(btn.dataset.id);
-      const r = btn.dataset.r;
       const m = catalog.pool[id];
-      const weight = {Loved:3, Liked:1.5, Meh:-0.5, Hated:-3}[r];
-      nudgeGenres(m, weight);
-      nudgeKeywords(id, weight);
-      const d = store[mode];
-      d.watched[id] = r;
-      d.toWatch = d.toWatch.filter(x=>x!==id);
-      await saveMode(mode);
-      if(r === 'Loved') boostFromRecs(m, 6);
-      showToast(`Got it, "${m.title}" was ${r.toLowerCase()}`);
-      renderToWatch();
-      renderToWatchBadge();
-      await buildDeck();
+      await commitRating(m, btn.dataset.r);
+    });
+  });
+}
+
+function renderLikes(){
+  const d = store[mode];
+  const container = document.getElementById('likesList');
+  if(d.matches.length===0){
+    container.innerHTML = `<div class="empty-state" style="position:static; height:320px;"><div class="big">💛</div><h3>No matches yet</h3><p>Movies you like in Discover get saved here permanently, organized by genre, so you can always find your way back.</p></div>`;
+    return;
+  }
+  const groups = {};
+  d.matches.slice().reverse().forEach(id=>{
+    const m = catalog.pool[id];
+    if(!m) return;
+    const g = primaryGenreName(m);
+    groups[g] = groups[g] || [];
+    groups[g].push(m);
+  });
+  const sortedGenres = Object.keys(groups).sort();
+  container.innerHTML = sortedGenres.map(g => `
+    <div class="genre-group-title">${g} <span class="cnt">(${groups[g].length})</span></div>
+    ${groups[g].map(m=>{
+      const posterUrl = m.poster_path ? TMDB_IMG + m.poster_path : null;
+      const thumbInner = posterUrl ? `<img src="${posterUrl}" alt="${escapeHtml(m.title)}">` : '🎬';
+      const rating = d.watched[m.id];
+      return `
+      <div class="watch-item like-item" data-id="${m.id}" style="cursor:pointer;">
+        <div class="watch-thumb" style="background:hsl(${hashHue(m.id)},40%,14%)">${thumbInner}</div>
+        <div class="watch-info">
+          <div class="t">${escapeHtml(m.title)}</div>
+          <div class="y">${m.year} · ★ ${(m.vote_average||0).toFixed(1)}${rating ? ' · ' + rating : ' · not yet rated'}</div>
+        </div>
+      </div>`;
+    }).join('')}
+  `).join('');
+  container.querySelectorAll('.like-item').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = parseInt(el.dataset.id);
+      const m = catalog.pool[id];
+      if(m) openModal(m);
     });
   });
 }
@@ -741,6 +947,8 @@ async function switchMode(m){
   renderStack();
   renderToWatchBadge();
   renderToWatch();
+  renderLikesBadge();
+  renderLikes();
   renderProfile();
 }
 
@@ -748,8 +956,10 @@ function switchTab(tab){
   document.querySelectorAll('.tab-btn').forEach(b=>b.classList.toggle('active', b.dataset.tab===tab));
   document.getElementById('tab-discover').style.display = tab==='discover' ? '' : 'none';
   document.getElementById('tab-towatch').style.display = tab==='towatch' ? '' : 'none';
+  document.getElementById('tab-likes').style.display = tab==='likes' ? '' : 'none';
   document.getElementById('tab-profile').style.display = tab==='profile' ? '' : 'none';
   if(tab==='towatch') renderToWatch();
+  if(tab==='likes') renderLikes();
   if(tab==='profile') renderProfile();
 }
 
@@ -774,6 +984,7 @@ document.getElementById('modeFriends').addEventListener('click', ()=>switchMode(
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click', ()=>switchTab(b.dataset.tab)));
 document.getElementById('btnNope').addEventListener('click', ()=>swipeButton('nope'));
 document.getElementById('btnLike').addEventListener('click', ()=>swipeButton('like'));
+document.getElementById('btnSeen').addEventListener('click', ()=>{ if(topCard) openRateSheet(topCard.movie); });
 document.getElementById('btnInfo').addEventListener('click', ()=>{ if(topCard) openModal(topCard.movie); });
 document.getElementById('modalOverlay').addEventListener('click', (e)=>{ if(e.target.id==='modalOverlay') closeModal(); });
 document.getElementById('sortSelect').addEventListener('change', async (e)=>{
@@ -787,7 +998,7 @@ document.getElementById('resetBtn').addEventListener('click', async ()=>{
   if(btn.dataset.armed === '1'){
     store[mode] = defaultData();
     await saveMode(mode);
-    await buildDeck(); renderStack(); renderToWatchBadge(); renderToWatch(); renderProfile();
+    await buildDeck(); renderStack(); renderToWatchBadge(); renderToWatch(); renderLikesBadge(); renderLikes(); renderProfile();
     btn.textContent = "Reset this mode's data";
     btn.dataset.armed = '0';
     showToast('Cleared. Fresh start.');
@@ -798,11 +1009,16 @@ document.getElementById('resetBtn').addEventListener('click', async ()=>{
   }
 });
 
-(async function init(){
-  renderGenreChips();
-  await loadCatalog();
-  await loadKeywordCache();
-  await loadMode('solo');
+document.getElementById('addProfileBtn').addEventListener('click', addProfile);
+document.getElementById('newProfileInput').addEventListener('keydown', e=>{ if(e.key==='Enter') addProfile(); });
+document.getElementById('switchProfileBtn').addEventListener('click', ()=>{
+  renderProfileScreen();
+  document.getElementById('profileScreen').style.display = 'flex';
+});
+
+async function startApp(){
+  mode = 'solo';
+  store = { solo:null, friends:null };
   const needsSeed = Object.keys(catalog.pool).length < 200;
   if(needsSeed){
     document.getElementById('stackWrap').innerHTML = `
@@ -817,6 +1033,18 @@ document.getElementById('resetBtn').addEventListener('click', async ()=>{
     });
   }
   await switchMode('solo');
+}
+
+(async function init(){
+  renderGenreChips();
+  await loadCatalog();
+  await loadKeywordCache();
+  renderProfileScreen();
+  const last = localStorage.getItem(LAST_PROFILE_KEY);
+  const profiles = getProfiles();
+  if(last && profiles.includes(last)){
+    await selectProfile(last);
+  }
 })();
 </script>
 </body>
