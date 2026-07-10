@@ -459,9 +459,18 @@ async function saveCatalog(){ await safeSet('rm2:catalog', catalog); }
 async function loadKeywordCache(){ keywordCache = (await safeGet('rm2:keywords')) || {}; }
 async function saveKeywordCache(){ await safeSet('rm2:keywords', keywordCache); }
 
-async function apiGet(url){
-  try{ const r = await fetch(url); if(!r.ok) return null; return await r.json(); }
-  catch(e){ return null; }
+async function apiGet(url, timeoutMs){
+  const controller = new AbortController();
+  const t = setTimeout(()=>controller.abort(), timeoutMs || 7000);
+  try{
+    const r = await fetch(url, {signal: controller.signal});
+    clearTimeout(t);
+    if(!r.ok) return null;
+    return await r.json();
+  }catch(e){
+    clearTimeout(t);
+    return null;
+  }
 }
 
 function normalize(raw){
@@ -508,13 +517,19 @@ async function ensurePoolFilled(genreId, sortKey, minCount){
 async function seedCatalog(onProgress){
   let done = 0;
   const total = TOP_GENRES.length + 1;
-  await Promise.all(TOP_GENRES.map(async g => {
-    await ensurePoolFilled(g.id, 'popularity', 60);
+  const seedWork = (async ()=>{
+    await Promise.all(TOP_GENRES.map(async g => {
+      await ensurePoolFilled(g.id, 'popularity', 30);
+      done++; if(onProgress) onProgress(done, total);
+    }));
+    await ensurePoolFilled('', 'popularity', 40);
     done++; if(onProgress) onProgress(done, total);
-  }));
-  await ensurePoolFilled('', 'popularity', 60);
-  done++; if(onProgress) onProgress(done, total);
-  await saveCatalog();
+    await saveCatalog();
+  })();
+  const failsafe = new Promise(resolve => setTimeout(resolve, 14000));
+  await Promise.race([seedWork, failsafe]);
+  // if the failsafe won the race, let seeding keep going quietly in the background
+  seedWork.then(()=>{ /* no-op, already handled by the race above */ }).catch(()=>{});
 }
 
 /* ---------- keywords ---------- */
