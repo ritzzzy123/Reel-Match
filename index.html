@@ -1034,6 +1034,7 @@ document.getElementById('switchProfileBtn').addEventListener('click', ()=>{
 async function startApp(){
   mode = 'solo';
   store = { solo:null, friends:null };
+  await loadMode('solo');
   const needsSeed = Object.keys(catalog.pool).length < 200;
   if(needsSeed){
     document.getElementById('stackWrap').innerHTML = `
@@ -1042,10 +1043,14 @@ async function startApp(){
         <h3>Building your catalog</h3>
         <p id="loadProgress">Pulling from TMDB across top genres…</p>
       </div>`;
-    await seedCatalog((done,total)=>{
-      const el = document.getElementById('loadProgress');
-      if(el) el.textContent = `Pulling from TMDB across top genres… ${done}/${total}`;
-    });
+    try{
+      await seedCatalog((done,total)=>{
+        const el = document.getElementById('loadProgress');
+        if(el) el.textContent = `Pulling from TMDB across top genres… ${done}/${total}`;
+      });
+    }catch(e){
+      console.error('seeding failed, continuing with partial catalog', e);
+    }
   }
   await switchMode('solo');
 }
