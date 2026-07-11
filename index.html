@@ -185,6 +185,7 @@ main{
 }
 .stamp.like{left:24px; color:var(--like); border-color:var(--like);}
 .stamp.nope{right:24px; color:var(--nope); border-color:var(--nope); transform:rotate(14deg);}
+.stamp.unsure{left:50%; transform:translateX(-50%) rotate(0deg); color:var(--gold); border-color:var(--gold); top:24px;}
 
 .card-body{position:relative; z-index:2; padding:18px 22px 26px;}
 .because{
@@ -242,11 +243,31 @@ main{
 .action-btn.like{color:var(--like); font-size:23px;}
 .action-btn.info{width:46px; height:46px; font-size:17px; color:var(--gold);}
 .action-btn.seen{width:46px; height:46px; font-size:16px; color:var(--cream);}
+.action-btn.unsure{width:46px; height:46px; font-size:18px; color:var(--gold);}
+.action-btn.undo{width:46px; height:46px; font-size:19px; color:var(--muted);}
+.action-btn.undo:disabled{opacity:0.35; cursor:default;}
+.action-btn.undo:disabled:active{transform:none;}
 .genre-group-title{
   font-family:'Bebas Neue'; font-size:17px; letter-spacing:.3px; color:var(--cream); margin:20px 0 10px;
   display:flex; align-items:center; gap:6px; font-weight:400;
 }
 .genre-group-title .cnt{color:var(--muted); font-size:12px; font-weight:500;}
+
+.unsure-row{display:flex; gap:10px; overflow-x:auto; scrollbar-width:none; padding-bottom:4px;}
+.unsure-row::-webkit-scrollbar{display:none;}
+.unsure-poster{
+  flex-shrink:0; width:76px; height:108px; border-radius:12px; overflow:hidden; cursor:pointer;
+  box-shadow:var(--shadow-sm); background:var(--surface2); position:relative; transition:transform .12s ease;
+}
+.unsure-poster:active{transform:scale(0.94);}
+.unsure-poster img{width:100%; height:100%; object-fit:cover;}
+.unsure-poster .fallback{width:100%; height:100%; display:flex; align-items:center; justify-content:center; font-size:22px;}
+.bring-back-btn{
+  width:100%; background:var(--surface); border:none; color:var(--gold); padding:12px; border-radius:14px;
+  font-family:'Space Grotesk'; font-weight:700; font-size:12.5px; cursor:pointer; margin-top:10px; box-shadow:var(--shadow-sm);
+  transition:transform .12s ease;
+}
+.bring-back-btn:active{transform:scale(0.97);}
 
 .watch-item{
   display:flex; gap:13px; background:var(--surface); border-radius:18px; padding:13px; margin-bottom:10px; box-shadow:var(--shadow-sm);
@@ -387,8 +408,8 @@ button:focus-visible, input:focus-visible, select:focus-visible{
   main{padding-left:16px; padding-right:16px;}
   .card-title{font-size:25px;}
   .action-btn{width:52px; height:52px;}
-  .action-btn.info, .action-btn.seen{width:42px; height:42px;}
-  .actions{gap:13px;}
+  .action-btn.info, .action-btn.seen, .action-btn.undo, .action-btn.unsure{width:40px; height:40px; font-size:15px;}
+  .actions{gap:9px;}
 }
 @media (max-height:680px){
   .stack-wrap{height:clamp(340px, 50dvh, 460px);}
@@ -432,7 +453,9 @@ button:focus-visible, input:focus-visible, select:focus-visible{
       </div>
       <div class="stack-wrap" id="stackWrap"></div>
       <div class="actions">
+        <button class="action-btn undo" id="btnUndo" aria-label="Undo last swipe">↺</button>
         <button class="action-btn nope" id="btnNope" aria-label="Not for me">✕</button>
+        <button class="action-btn unsure" id="btnUnsure" aria-label="Not sure">🤷</button>
         <button class="action-btn seen" id="btnSeen" aria-label="Already watched">👁</button>
         <button class="action-btn info" id="btnInfo" aria-label="More info">ⓘ</button>
         <button class="action-btn like" id="btnLike" aria-label="Like">♥</button>
@@ -442,6 +465,7 @@ button:focus-visible, input:focus-visible, select:focus-visible{
     <div id="tab-towatch" style="display:none;">
       <div class="section-title">Rate what you watched</div>
       <div id="toWatchList"></div>
+      <div id="unsureSection"></div>
     </div>
 
     <div id="tab-likes" style="display:none;">
@@ -547,11 +571,12 @@ let activeMood = '';
 let moodKeywordCache = {};
 let moodPoolIds = {};
 let profileName = null;
+let lastAction = null;
 
 const PROFILES_KEY = 'rm2:profiles';
 const LAST_PROFILE_KEY = 'rm2:lastProfile';
 
-function defaultData(){ return { genreScore:{}, keywordScore:{}, seenIds:[], toWatch:[], watched:{}, boosts:{}, boostSource:{}, matches:[] }; }
+function defaultData(){ return { genreScore:{}, keywordScore:{}, seenIds:[], toWatch:[], watched:{}, boosts:{}, boostSource:{}, matches:[], unsure:[] }; }
 function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function hashHue(id){ return (id * 47) % 360; }
 
@@ -604,6 +629,7 @@ async function selectProfile(name){
 async function loadMode(m){
   store[m] = (await safeGet(`rm2:${encodeURIComponent(profileName)}:${m}`)) || defaultData();
   if(!store[m].matches) store[m].matches = [];
+  if(!store[m].unsure) store[m].unsure = [];
 }
 async function saveMode(m){ await safeSet(`rm2:${encodeURIComponent(profileName)}:${m}`, store[m]); }
 async function loadCatalog(){ catalog = (await safeGet('rm2:catalog')) || { pool:{}, cursors:{} }; }
@@ -684,35 +710,40 @@ async function resolveMoodKeywords(mood){
   await saveMoodKeywordCache();
   return ids;
 }
-function moodDiscoverURL(mood, page){
-  const genreParam = mood.genres.join('|');
-  let url = `${API}/discover/movie?api_key=${TMDB_KEY}&language=en-US&sort_by=popularity.desc&with_original_language=en&include_adult=false&vote_count.gte=60&page=${page}&with_genres=${genreParam}`;
+function moodDiscoverURL(mood, page, genreOverride){
+  const genreParam = genreOverride ? String(genreOverride) : mood.genres.join('|');
+  let url = `${API}/discover/movie?api_key=${TMDB_KEY}&language=en-US&sort_by=popularity.desc&with_original_language=en&include_adult=false&vote_count.gte=40&page=${page}&with_genres=${genreParam}`;
   if(mood.keywordIds && mood.keywordIds.length) url += `&with_keywords=${mood.keywordIds.join('|')}`;
   return url;
 }
-function countMoodAvailable(moodId){
-  const ids = moodPoolIds[moodId] || [];
+function moodPoolKey(moodId, genreOverride){ return moodId + ':' + (genreOverride || 'all'); }
+function countMoodAvailable(poolKeyStr){
+  const ids = moodPoolIds[poolKeyStr] || [];
   return ids.filter(id => catalog.pool[id] && !isSeen(id)).length;
 }
-async function ensureMoodPool(mood, minCount){
+async function ensureMoodPool(mood, minCount, genreOverride){
   if(!mood.keywordIds) mood.keywordIds = await resolveMoodKeywords(mood);
-  const key = 'mood:' + mood.id;
+  const poolK = moodPoolKey(mood.id, genreOverride);
+  const key = 'mood:' + poolK;
   if(catalog.cursors[key] === undefined) catalog.cursors[key] = 1;
-  if(!moodPoolIds[mood.id]) moodPoolIds[mood.id] = [];
+  if(!moodPoolIds[poolK]) moodPoolIds[poolK] = [];
   let guard = 0;
-  while(countMoodAvailable(mood.id) < minCount && catalog.cursors[key] !== null && guard < 6){
+  // if a specific genre is paired with this mood, allow more pages since the combo is narrower
+  const maxGuard = genreOverride ? 8 : 6;
+  while(countMoodAvailable(poolK) < minCount && catalog.cursors[key] !== null && guard < maxGuard){
     const page = catalog.cursors[key];
-    const data = await apiGet(moodDiscoverURL(mood, page));
+    const data = await apiGet(moodDiscoverURL(mood, page, genreOverride));
     if(!data || !data.results || data.results.length===0){ catalog.cursors[key] = null; break; }
     data.results.forEach(r => {
       catalog.pool[r.id] = normalize(r);
-      if(!moodPoolIds[mood.id].includes(r.id)) moodPoolIds[mood.id].push(r.id);
+      if(!moodPoolIds[poolK].includes(r.id)) moodPoolIds[poolK].push(r.id);
     });
     catalog.cursors[key] = (data.total_pages && page >= data.total_pages) ? null : page+1;
     guard++;
   }
   await saveCatalog();
   await saveMoodPool();
+  return poolK;
 }
 
 async function seedCatalog(onProgress){
@@ -787,10 +818,10 @@ async function buildDeck(){
   let candidates;
   if(activeMood){
     const mood = MOODS.find(m => m.id === activeMood);
-    await ensureMoodPool(mood, 25);
-    candidates = (moodPoolIds[mood.id] || [])
+    const poolK = await ensureMoodPool(mood, 25, activeGenre || null);
+    candidates = (moodPoolIds[poolK] || [])
       .map(id => catalog.pool[id])
-      .filter(m => m && (!activeGenre || m.genre_ids.includes(Number(activeGenre))) && !isSeen(m.id));
+      .filter(m => m && !isSeen(m.id));
   } else {
     await ensurePoolFilled(activeGenre, activeSort, 25);
     candidates = Object.values(catalog.pool).filter(m =>
@@ -850,6 +881,34 @@ function showToast(msg){
 
 function haptic(ms){
   if(navigator.vibrate){ try{ navigator.vibrate(ms); }catch(e){} }
+}
+
+function snapshotForUndo(movieId){
+  lastAction = {
+    mode,
+    movieId,
+    snapshot: JSON.parse(JSON.stringify(store[mode]))
+  };
+  updateUndoButton();
+}
+function updateUndoButton(){
+  const btn = document.getElementById('btnUndo');
+  if(btn) btn.disabled = !(lastAction && lastAction.mode === mode);
+}
+async function undoLastAction(){
+  if(!lastAction || lastAction.mode !== mode) return;
+  const { movieId, snapshot } = lastAction;
+  store[mode] = snapshot;
+  await saveMode(mode);
+  if(!deck.includes(movieId)) deck.unshift(movieId);
+  const movie = catalog.pool[movieId];
+  lastAction = null;
+  updateUndoButton();
+  haptic(20);
+  showToast(movie ? `Brought back "${movie.title}"` : 'Undone');
+  renderStack();
+  renderToWatchBadge();
+  renderLikesBadge();
 }
 
 function spawnHeartBurst(){
@@ -915,6 +974,7 @@ function cardHTML(m){
       <div class="match-badge"><div class="dot"></div><span>${pct}% MATCH</span></div>
       <div class="stamp like">LIKE</div>
       <div class="stamp nope">NOPE</div>
+      <div class="stamp unsure">NOT SURE</div>
       <div class="card-body">
         ${boostNote}
         <div class="card-title">${escapeHtml(m.title)}</div>
@@ -928,11 +988,17 @@ function renderStack(){
   const wrap = document.getElementById('stackWrap');
   wrap.innerHTML = '';
   if(deck.length === 0){
+    const bothActive = activeMood && activeGenre;
+    const genreName = activeGenre ? (GENRE_NAMES[activeGenre] || 'that genre') : '';
+    const moodLabel = activeMood ? (MOODS.find(m=>m.id===activeMood)||{}).label : '';
+    const msg = bothActive
+      ? `${moodLabel || 'This mood'} + ${genreName} is a pretty narrow combo, there just aren't many movies tagged as both. Try clearing the genre filter, or switch to "Any Mood".`
+      : `You've swiped through this filter. Try a different genre, switch sort order, or rate what you've watched to sharpen future picks.`;
     wrap.innerHTML = `
       <div class="empty-state">
         <div class="big">🎞️</div>
         <h3>That's the whole reel</h3>
-        <p>You've swiped through this filter. Try a different genre, switch sort order, or rate what you've watched to sharpen future picks.</p>
+        <p>${msg}</p>
       </div>`;
     return;
   }
@@ -960,6 +1026,7 @@ function attachSwipe(card, movie){
   let lastX=0, lastT=0, velocity=0;
   const likeStamp = card.querySelector('.stamp.like');
   const nopeStamp = card.querySelector('.stamp.nope');
+  const unsureStamp = card.querySelector('.stamp.unsure');
 
   function onDown(e){
     dragging = true;
@@ -976,18 +1043,28 @@ function attachSwipe(card, movie){
     const dt = now - lastT;
     if(dt > 0){ velocity = (p.clientX - lastX) / dt; }
     lastX = p.clientX; lastT = now;
-    card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx*0.06}deg)`;
-    const op = Math.min(Math.abs(dx)/100, 1);
-    if(dx>0){ likeStamp.style.opacity=op; nopeStamp.style.opacity=0; } else { nopeStamp.style.opacity=op; likeStamp.style.opacity=0; }
+    const vertical = dy < -20 && Math.abs(dy) > Math.abs(dx) * 1.2;
+    if(vertical){
+      card.style.transform = `translate(${dx*0.3}px, ${dy}px) rotate(0deg)`;
+      const op = Math.min(Math.abs(dy)/100, 1);
+      unsureStamp.style.opacity = op; likeStamp.style.opacity = 0; nopeStamp.style.opacity = 0;
+    } else {
+      card.style.transform = `translate(${dx}px, ${dy}px) rotate(${dx*0.06}deg)`;
+      const op = Math.min(Math.abs(dx)/100, 1);
+      unsureStamp.style.opacity = 0;
+      if(dx>0){ likeStamp.style.opacity=op; nopeStamp.style.opacity=0; } else { nopeStamp.style.opacity=op; likeStamp.style.opacity=0; }
+    }
   }
   function onUp(){
     if(!dragging) return;
     dragging = false;
     card.style.transition = 'transform .35s cubic-bezier(.2,.9,.3,1)';
+    const vertical = dy < -20 && Math.abs(dy) > Math.abs(dx) * 1.2;
     const flick = Math.abs(velocity) > 0.55 && Math.abs(dx) > 24;
-    if(Math.abs(dx) > 90 || flick){ commitSwipe(dx>0?'like':'nope', movie, card); }
+    if(vertical && dy < -80){ commitUnsure(movie, card); }
+    else if(Math.abs(dx) > 90 || flick){ commitSwipe(dx>0?'like':'nope', movie, card); }
     else if(Math.abs(dx) < 6 && Math.abs(dy) < 6){ openModal(movie); card.style.transform=''; }
-    else { card.style.transform='translate(0,0) rotate(0)'; likeStamp.style.opacity=0; nopeStamp.style.opacity=0; }
+    else { card.style.transform='translate(0,0) rotate(0)'; likeStamp.style.opacity=0; nopeStamp.style.opacity=0; unsureStamp.style.opacity=0; }
     dx=0; dy=0; velocity=0;
   }
   card.addEventListener('pointerdown', onDown);
@@ -997,6 +1074,7 @@ function attachSwipe(card, movie){
 }
 
 async function commitSwipe(dir, movie, card){
+  snapshotForUndo(movie.id);
   const flyX = dir==='like' ? 700 : -700;
   card.style.transform = `translate(${flyX}px, -40px) rotate(${dir==='like'?30:-30}deg)`;
   card.style.opacity = '0.3';
@@ -1005,6 +1083,7 @@ async function commitSwipe(dir, movie, card){
 
   const d = store[mode];
   d.seenIds.push(movie.id);
+  d.unsure = d.unsure.filter(x=>x!==movie.id);
   if(dir==='like'){
     spawnHeartBurst();
     nudgeGenres(movie, 1);
@@ -1023,7 +1102,24 @@ async function commitSwipe(dir, movie, card){
   setTimeout(async ()=>{ await buildDeck(); renderStack(); renderToWatchBadge(); }, 220);
 }
 
+async function commitUnsure(movie, card){
+  snapshotForUndo(movie.id);
+  card.style.transform = `translate(${(Math.random()*40-20).toFixed(0)}px, -820px) rotate(0deg)`;
+  card.style.opacity = '0.2';
+  if(card._cleanup) card._cleanup();
+  haptic(10);
+
+  const d = store[mode];
+  if(!d.seenIds.includes(movie.id)) d.seenIds.push(movie.id);
+  if(!d.unsure.includes(movie.id)) d.unsure.push(movie.id);
+  showToast(`Parked "${movie.title}" — find it under To Rate anytime`);
+  deck.shift();
+  await saveMode(mode);
+  setTimeout(async ()=>{ await buildDeck(); renderStack(); renderToWatch(); }, 220);
+}
+
 function swipeButton(dir){ if(topCard) commitSwipe(dir, topCard.movie, topCard.el); }
+function unsureButton(){ if(topCard) commitUnsure(topCard.movie, topCard.el); }
 
 async function openModal(m){
   modalMovie = m;
@@ -1078,22 +1174,26 @@ async function openModal(m){
   }
 }
 async function quickJudge(m, dir){
+  snapshotForUndo(m.id);
   const d = store[mode];
   if(!d.seenIds.includes(m.id)) d.seenIds.push(m.id);
+  d.unsure = d.unsure.filter(x=>x!==m.id);
   if(dir==='like'){ nudgeGenres(m,1); if(!d.toWatch.includes(m.id)) d.toWatch.push(m.id); addToMatches(m.id); nudgeKeywords(m.id,1); boostFromRecs(m,4); }
   else { nudgeGenres(m,-1.5); nudgeKeywords(m.id,-1.5); }
   await saveMode(mode);
   deck = deck.filter(id=>id!==m.id);
-  renderStack(); renderToWatchBadge(); renderLikesBadge();
+  renderStack(); renderToWatchBadge(); renderLikesBadge(); renderToWatch();
 }
 function closeModal(){ document.getElementById('modalOverlay').classList.remove('open'); }
 
 async function commitRating(movie, rating){
+  snapshotForUndo(movie.id);
   const d = store[mode];
   const weight = {Loved:3, Liked:1.5, Meh:-0.5, Hated:-3}[rating];
   nudgeGenres(movie, weight);
   nudgeKeywords(movie.id, weight);
   if(!d.seenIds.includes(movie.id)) d.seenIds.push(movie.id);
+  d.unsure = d.unsure.filter(x=>x!==movie.id);
   d.watched[movie.id] = rating;
   d.toWatch = d.toWatch.filter(x=>x!==movie.id);
   if(rating==='Loved' || rating==='Liked') addToMatches(movie.id);
@@ -1154,6 +1254,7 @@ function renderToWatch(){
   const list = document.getElementById('toWatchList');
   if(d.toWatch.length===0){
     list.innerHTML = `<div class="empty-state" style="position:static; height:300px;"><div class="big">🍿</div><h3>Nothing to rate yet</h3><p>Like a few movies in Discover, then come back here once you've actually watched one.</p></div>`;
+    renderUnsure();
     return;
   }
   list.innerHTML = d.toWatch.map(id=>{
@@ -1182,6 +1283,45 @@ function renderToWatch(){
       const m = catalog.pool[id];
       await commitRating(m, btn.dataset.r);
     });
+  });
+  renderUnsure();
+}
+
+function renderUnsure(){
+  const d = store[mode];
+  const section = document.getElementById('unsureSection');
+  if(!section) return;
+  if(!d.unsure || d.unsure.length === 0){ section.innerHTML = ''; return; }
+  const posters = d.unsure.map(id=>{
+    const m = catalog.pool[id];
+    if(!m) return '';
+    const posterUrl = m.poster_path ? TMDB_IMG + m.poster_path : null;
+    const inner = posterUrl ? `<img src="${posterUrl}" alt="${escapeHtml(m.title)}">` : `<div class="fallback">🎬</div>`;
+    return `<div class="unsure-poster" data-id="${id}">${inner}</div>`;
+  }).join('');
+  section.innerHTML = `
+    <div class="genre-group-title">🤷 Not Sure Yet <span class="cnt">(${d.unsure.length})</span></div>
+    <div class="unsure-row">${posters}</div>
+    <button class="bring-back-btn" id="bringBackBtn">🔀 Bring these back into Discover</button>
+  `;
+  section.querySelectorAll('.unsure-poster').forEach(el=>{
+    el.addEventListener('click', ()=>{
+      const id = parseInt(el.dataset.id);
+      const m = catalog.pool[id];
+      if(m) openModal(m);
+    });
+  });
+  document.getElementById('bringBackBtn').addEventListener('click', async ()=>{
+    const d2 = store[mode];
+    d2.seenIds = d2.seenIds.filter(id => !d2.unsure.includes(id));
+    const count = d2.unsure.length;
+    d2.unsure = [];
+    await saveMode(mode);
+    haptic(15);
+    showToast(`${count} movie${count===1?'':'s'} back in your Discover deck`);
+    await buildDeck();
+    renderStack();
+    renderUnsure();
   });
 }
 
@@ -1271,6 +1411,7 @@ async function switchMode(m){
   renderLikesBadge();
   renderLikes();
   renderProfile();
+  updateUndoButton();
 }
 
 function switchTab(tab){
@@ -1321,6 +1462,8 @@ function renderMoodChips(){
 document.getElementById('modeSolo').addEventListener('click', ()=>{ haptic(8); switchMode('solo'); });
 document.getElementById('modeFriends').addEventListener('click', ()=>{ haptic(8); switchMode('friends'); });
 document.querySelectorAll('.tab-btn').forEach(b=>b.addEventListener('click', ()=>{ haptic(8); switchTab(b.dataset.tab); }));
+document.getElementById('btnUndo').addEventListener('click', undoLastAction);
+document.getElementById('btnUnsure').addEventListener('click', unsureButton);
 document.getElementById('btnNope').addEventListener('click', ()=>swipeButton('nope'));
 document.getElementById('btnLike').addEventListener('click', ()=>swipeButton('like'));
 document.getElementById('btnSeen').addEventListener('click', ()=>{ if(topCard) openRateSheet(topCard.movie); });
@@ -1337,6 +1480,8 @@ document.getElementById('resetBtn').addEventListener('click', async ()=>{
   if(btn.dataset.armed === '1'){
     store[mode] = defaultData();
     await saveMode(mode);
+    if(lastAction && lastAction.mode === mode) lastAction = null;
+    updateUndoButton();
     await buildDeck(); renderStack(); renderToWatchBadge(); renderToWatch(); renderLikesBadge(); renderLikes(); renderProfile();
     btn.textContent = "Reset this mode's data";
     btn.dataset.armed = '0';
